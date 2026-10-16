@@ -1,5 +1,5 @@
 # Builds the Mac app on GitHub's Macs (Apple Silicon and Intel), tests it, and puts the two .dmg
-# files on the repository's Releases page.
+# files on the repository's Releases page, but only when both versions passed every test.
 # Start it by pushing a version tag:  git tag v1.0 && git push origin v1.0
 # or in the Actions tab: "Mac app" > Run workflow.
 # A name with "test" in it (v1.1-test) only builds and tests: the .dmg files are then under the
@@ -24,20 +24,7 @@ env:
   GH_TOKEN: ${{ github.token }}
 
 jobs:
-  release:
-    if: ${{ !contains(inputs.version || github.ref_name, 'test') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create the release
-        run: |
-          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
-          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "Titulky $VERSION" \
-            --notes "Titulky-mac-arm64.dmg: Macs with Apple M1, M2, M3, ... chips. Titulky-mac-x86_64.dmg: Macs with an Intel processor. Needs macOS 14 or newer. First start: System Settings > Privacy & Security > Open Anyway."
-
   build:
-    needs: release
-    if: ${{ !failure() && !cancelled() }}  # also when the release job was skipped for a test
     strategy:
       fail-fast: false
       matrix:
@@ -82,15 +69,28 @@ jobs:
           ls -l dist/*.dmg
           test "$(stat -f%z dist/Titulky-mac-*.dmg)" -lt 2147483648
 
-      - name: Put the .dmg on the release
-        if: ${{ !contains(env.VERSION, 'test') }}
-        run: gh release upload "$VERSION" dist/Titulky-mac-*.dmg --clobber --repo "$GITHUB_REPOSITORY"
-
-      - name: Keep the .dmg with the test run
-        if: ${{ contains(env.VERSION, 'test') }}
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: Titulky-mac-${{ runner.arch }}
           path: dist/Titulky-mac-*.dmg
           compression-level: 0
           retention-days: 7
+
+  release:
+    needs: build  # runs only when both Mac versions built and passed the tests
+    if: ${{ !contains(inputs.version || github.ref_name, 'test') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dmg
+          merge-multiple: true
+
+      - name: Publish the release
+        run: |
+          ls -l dmg
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Titulky $VERSION" \
+            --notes "Titulky-mac-arm64.dmg: Macs with Apple M1, M2, M3, ... chips. Titulky-mac-x86_64.dmg: Macs with an Intel processor. Needs macOS 14 or newer. First start: System Settings > Privacy & Security > Open Anyway."
+          gh release upload "$VERSION" dmg/*.dmg --clobber --repo "$GITHUB_REPOSITORY"
