@@ -2,6 +2,8 @@
 # files on the repository's Releases page.
 # Start it by pushing a version tag:  git tag v1.0 && git push origin v1.0
 # or in the Actions tab: "Mac app" > Run workflow.
+# A name with "test" in it (v1.1-test) only builds and tests: the .dmg files are then under the
+# run in the Actions tab, and no release is made.
 name: Mac app
 
 on:
@@ -23,6 +25,7 @@ env:
 
 jobs:
   release:
+    if: ${{ !contains(inputs.version || github.ref_name, 'test') }}
     runs-on: ubuntu-latest
     steps:
       - name: Create the release
@@ -34,6 +37,7 @@ jobs:
 
   build:
     needs: release
+    if: ${{ !failure() && !cancelled() }}  # also when the release job was skipped for a test
     strategy:
       fail-fast: false
       matrix:
@@ -73,8 +77,20 @@ jobs:
           cat "$HOME/Library/Application Support/Titulky/titulky.log"
           cat test.cs.srt
 
-      - name: Put the .dmg on the release
+      - name: Check the size (GitHub's limit is 2 GB per release file)
         run: |
           ls -l dist/*.dmg
-          test "$(stat -f%z dist/Titulky-mac-*.dmg)" -lt 2147483648  # GitHub's 2 GB limit per file
-          gh release upload "$VERSION" dist/Titulky-mac-*.dmg --clobber --repo "$GITHUB_REPOSITORY"
+          test "$(stat -f%z dist/Titulky-mac-*.dmg)" -lt 2147483648
+
+      - name: Put the .dmg on the release
+        if: ${{ !contains(env.VERSION, 'test') }}
+        run: gh release upload "$VERSION" dist/Titulky-mac-*.dmg --clobber --repo "$GITHUB_REPOSITORY"
+
+      - name: Keep the .dmg with the test run
+        if: ${{ contains(env.VERSION, 'test') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Titulky-mac-${{ runner.arch }}
+          path: dist/Titulky-mac-*.dmg
+          compression-level: 0
+          retention-days: 7
