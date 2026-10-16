@@ -1,0 +1,80 @@
+# Builds the Mac app on GitHub's Macs (Apple Silicon and Intel), tests it, and puts the two .dmg
+# files on the repository's Releases page.
+# Start it by pushing a version tag:  git tag v1.0 && git push origin v1.0
+# or in the Actions tab: "Mac app" > Run workflow.
+name: Mac app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Name of the release that gets the .dmg files
+        default: mac-test
+
+permissions:
+  contents: write  # to create the release
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
+  TITULKY_MODELS: turbo  # GitHub allows 2 GB per release file, so the app includes only turbo
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the release
+        run: |
+          gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Titulky $VERSION" \
+            --notes "Titulky-mac-arm64.dmg: Macs with Apple M1, M2, M3, ... chips. Titulky-mac-x86_64.dmg: Macs with an Intel processor. Needs macOS 14 or newer. First start: System Settings > Privacy & Security > Open Anyway."
+
+  build:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]  # Apple Silicon, Intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python 3.12 from python.org
+        run: |
+          curl -sSLo python.pkg https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg
+          sudo installer -pkg python.pkg -target /
+
+      - name: Build
+        run: bash build_mac.sh
+
+      - name: Test that the window opens
+        run: |
+          dist/Titulky.app/Contents/MacOS/Titulky &
+          sleep 15
+          cat "$HOME/Library/Application Support/Titulky/titulky.log"
+          kill -0 $! && kill $!
+
+      - name: Test transcribing and embedding a spoken clip
+        run: |
+          say -o speech.aiff "Hello and welcome to the show. Today we talk about the weather in Prague."
+          .venv-mac/bin/python mac/make_test_video.py speech.aiff test.mp4
+          dist/Titulky.app/Contents/MacOS/Titulky --cli test.mp4 --translator none --embed || true
+          cat "$HOME/Library/Application Support/Titulky/titulky.log"
+          cat test.en.srt
+          test -f test.titulky.mp4
+
+      - name: Test translating with Google (needs the certificates bundled in the app)
+        continue-on-error: true  # Google sometimes refuses requests from GitHub's servers
+        run: |
+          dist/Titulky.app/Contents/MacOS/Titulky --cli test.en.srt --translator google || true
+          cat "$HOME/Library/Application Support/Titulky/titulky.log"
+          cat test.cs.srt
+
+      - name: Put the .dmg on the release
+        run: |
+          ls -l dist/*.dmg
+          test "$(stat -f%z dist/Titulky-mac-*.dmg)" -lt 2147483648  # GitHub's 2 GB limit per file
+          gh release upload "$VERSION" dist/Titulky-mac-*.dmg --clobber --repo "$GITHUB_REPOSITORY"

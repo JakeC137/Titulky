@@ -1,0 +1,30 @@
+Building Titulky
+================
+
+Windows: Titulky.exe
+  build.bat  ->  dist\Titulky  (copy the whole folder; the model comes from the Hugging Face cache)
+
+Mac: Titulky.app in a .dmg
+  A Mac app can only be built on a Mac. Two ways:
+
+  1. On GitHub's Macs (no Mac needed):
+     - push a version tag:  git tag v1.0  and  git push origin v1.0
+       (or Actions tab > "Mac app" > Run workflow)
+     - GitHub builds both Mac versions, checks that the app opens, transcribes
+       and embeds a test clip, and puts Titulky-mac-arm64.dmg and
+       Titulky-mac-x86_64.dmg on the repository's Releases page.
+     - The app includes the turbo model only: GitHub allows 2 GB per file.
+     - Releases of a private repository can only be downloaded by people
+       signed in to GitHub with access to it; download the .dmg and pass it on.
+
+  2. On a Mac (Apple Silicon builds for Apple Silicon Macs, Intel for Intel Macs):
+     - install Python 3.12 from python.org once:
+       https://www.python.org/ftp/python/3.12.10/python-3.12.10-macos11.pkg
+     - in Terminal, in this folder:  bash build_mac.sh
+     - result: dist/Titulky-mac-arm64.dmg (or -x86_64). To include large-v3
+       as well (4.5 GB):  TITULKY_MODELS="turbo large-v3" bash build_mac.sh
+
+  Without an Apple Developer ID ($99/year) Mac users have to click "Open
+  Anyway" once (see README). With one, set MAC_SIGN_IDENTITY and
+  MAC_NOTARY_PROFILE before build_mac.sh (see the top of that file) and the app
+  opens without any warning.

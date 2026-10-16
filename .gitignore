@@ -1,0 +1,9 @@
+.venv/
+.venv-mac/
+__pycache__/
+build/
+dist/
+models/
+*.log
+settings.json
+Titulky.spec
