@@ -49,6 +49,7 @@ jobs:
           kill -0 $! && kill $!
 
       - name: Test transcribing and embedding a spoken clip
+        timeout-minutes: 20  # fail instead of waiting for GitHub's 6-hour limit if the app hangs
         run: |
           say -o speech.aiff "Hello and welcome to the show. Today we talk about the weather in Prague."
           .venv-mac/bin/python mac/make_test_video.py speech.aiff test.mp4
@@ -59,6 +60,7 @@ jobs:
 
       - name: Test translating with Google (needs the certificates bundled in the app)
         continue-on-error: true  # Google sometimes refuses requests from GitHub's servers
+        timeout-minutes: 10
         run: |
           dist/Titulky.app/Contents/MacOS/Titulky --cli test.en.srt --translator google || true
           cat "$HOME/Library/Application Support/Titulky/titulky.log"

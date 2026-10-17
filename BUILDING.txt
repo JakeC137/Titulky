@@ -2,7 +2,8 @@ Building Titulky
 ================
 
 Windows: Titulky.exe
-  build.bat  ->  dist\Titulky  (copy the whole folder; the model comes from the Hugging Face cache)
+  build.bat  ->  dist\Titulky  (copy the whole folder; the model comes from models\large-v3
+                                  or the Hugging Face cache)
 
 Mac: Titulky.app in a .dmg
   A Mac app can only be built on a Mac. Two ways:

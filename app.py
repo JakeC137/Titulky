@@ -5,6 +5,7 @@ command-line version instead (output goes to titulky.log, since the exe has no c
 Everything shown in the window also goes to titulky.log, to find out what went wrong on another PC.
 """
 import json
+import multiprocessing
 import os
 import platform
 import queue
@@ -354,4 +355,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # Python's helper processes (on a Mac one starts as soon as huggingface_hub creates a progress
+    # bar) run the app's own executable; this lets them do their job instead of opening a window.
+    multiprocessing.freeze_support()
     main()

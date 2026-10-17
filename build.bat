@@ -10,6 +10,7 @@ set NV=.venv\Lib\site-packages\nvidia
   app.py || exit /b 1
 
 rem Bundle the Whisper model so the app works without downloading anything.
+if exist models\large-v3\model.bin robocopy models\large-v3 dist\Titulky\models\large-v3 /NJH /NJS /NFL /NDL >nul
 for /d %%d in ("%USERPROFILE%\.cache\huggingface\hub\models--Systran--faster-whisper-large-v3\snapshots\*") do (
   robocopy "%%d" dist\Titulky\models\large-v3 /NJH /NJS /NFL /NDL >nul
 )

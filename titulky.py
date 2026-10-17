@@ -687,8 +687,10 @@ def main(argv=None):
     p.add_argument("files", nargs="+", type=Path,
                    help="audio/video files (mp3, wav, mkv, mp4, ...), or .srt files to only translate")
     p.add_argument("--lang", help="spoken language code, e.g. en (default: auto-detect)")
-    p.add_argument("--model", default="large-v3",
-                   help="Whisper model: large-v3 (most accurate), turbo (faster), medium, small")
+    # Same default as the window: a Mac transcribes on the processor and its app comes with turbo.
+    p.add_argument("--model", default="turbo" if IS_MAC else "large-v3",
+                   help="Whisper model: large-v3 (most accurate), turbo (faster), medium, small "
+                        "(default: turbo on a Mac, otherwise large-v3)")
     p.add_argument("--translator", choices=["auto", "deepl", "google", "none"], default="auto",
                    help="auto = DeepL if DEEPL_API_KEY is set, otherwise Google")
     p.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto")
